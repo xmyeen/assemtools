@@ -1,0 +1,17 @@
+# -*- coding:utf-8 -*-
+#!/usr/bin/env python
+
+import os,sys,subprocess,json,warnings
+
+USAGE = f'''
+命令: python -m assemtools.exe.run [OPTION]...
+
+选项:
+-h,--help                      命令使用说明
+'''
+
+def main():
+    pass
+
+if '__main__' == __name__:
+    main()
