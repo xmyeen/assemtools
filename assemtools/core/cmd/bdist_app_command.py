@@ -36,14 +36,14 @@ class bdist_app(Command):
         self.trusted_host = None
         self.dist_dir = None
         self.bdist_building_dir = None
-        self.pip_buiding_dir = None
+        # self.pip_buiding_dir = None
         self.rpm = None
         self.deb = None
 
     def finalize_options(self):
         bdist_base = self.get_finalized_command('bdist').bdist_base
         self.bdist_building_dir = os.path.join(bdist_base, 'bdist_app')
-        self.pip_buiding_dir = os.path.join(bdist_base, 'pip_building')
+        # self.pip_buiding_dir = os.path.join(bdist_base, 'pip_building')
 
         self.set_undefined_options('bdist', ("dist_dir", "dist_dir"))
 
@@ -160,7 +160,7 @@ class bdist_app(Command):
         ))
 
         # Make pip building directory
-        os.makedirs(self.pip_buiding_dir, exist_ok = True)
+        # os.makedirs(self.pip_buiding_dir, exist_ok = True)
 
         # Make work directory
         work_dir = os.path.join(self.bdist_building_dir, 'zip')
@@ -173,7 +173,7 @@ class bdist_app(Command):
         if self.binary: pip_install_opts.extend(['--only-binary', self.binary])
 
         # Save wheels into dists
-        pip_wheel_opts = ["wheel", "-b", self.pip_buiding_dir, "-w", package_dir, wheel_file]
+        pip_wheel_opts = ["wheel", "-w", package_dir, wheel_file]
         if pip_install_opts: pip_wheel_opts.extend(pip_install_opts)
         if self.index_url: pip_wheel_opts.extend(f'--index-url={self.index_url}')
         if self.trusted_host: pip_wheel_opts.append(f'--trusted-host={self.trusted_host}')

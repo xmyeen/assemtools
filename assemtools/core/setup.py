@@ -1,8 +1,8 @@
 # -*- coding:utf-8 -*-
 #!/usr/bin/env python
 
-import os,typing,datetime,glob,warnings
-from setuptools import setup as inner_setup
+import os,typing,datetime,glob,warnings,pathlib
+from setuptools import setup as setuptools_setup
 from .cmd import bdist_app,cleanup
 from ..util.os import walk_relative_file
 from ..util.pkg import cov_to_program_name, cov_program_name_to_module_name, walk_requirements
@@ -65,6 +65,8 @@ def on_requirement(*req_dirs: os.PathLike) -> typing.Iterable[typing.Dict[str,st
 def on_data_dirs(**data_dir_info:typing.Tuple) -> typing.Iterable[typing.Dict[str,str]]:
     '''setuptools数据文件生成器
     '''
+    data_dir_info.setdefault('bin', ('bin', '*'))
+
     data_file_info = {}
     for data_dir_name, (data_dir_root, *data_file_expressions) in data_dir_info.items():
         if not data_file_expressions:
@@ -98,21 +100,22 @@ def setup(*on_option_generators:typing.Iterable[typing.Dict[str,str]], **setup_o
         cleanup = cleanup
     )
 
-    #Autogenerate entry_points
+    # Autogenerate entry_points
     if os.path.exists(name):
         setup_option.setdefault('entry_points', {})
         setup_option['entry_points'].setdefault('console_scripts', [])
         for file_path in glob.glob(f'{name}/*/__main__.py'):
-            name, *module_names, _, = file_path.split('/')
+            name, *module_names, _, = file_path.split(os.sep)
             program_name = cov_to_program_name(name, *module_names)
             module_name = cov_program_name_to_module_name(program_name)
             setup_option['entry_points']['console_scripts'].append(f"{program_name} = {module_name}.__main__:main")
 
-    #Autogenerate scripts
-    if os.path.exists('bin'):
+    # Autogenerate scripts
+    p = pathlib.Path("exefile")
+    if p.exists():
         setup_option.setdefault('scripts', [])
-        for file_name in os.listdir('bin'):
-            setup_option['scripts'].append(f'bin/{file_name}')
+        for file_path in p.glob('*'):
+            setup_option['scripts'].append(file_path.as_posix())
 
     # Run setup
-    inner_setup(**setup_option)
+    setuptools_setup(**setup_option)
