@@ -1,0 +1,9 @@
+# -*- coding:utf-8 -*-
+#!/usr/bin/env python
+
+import os
+
+from .linux import LINUX_INSTALLER_CONTENT_TEMPLATE_DEF
+from .win32 import WIN32_INSTALLER_CONTENT_TEMPLATE_DEF
+
+INSTALLER_CONTENT_TEMPLATE_DEF = WIN32_INSTALLER_CONTENT_TEMPLATE_DEF if 'nt' == os.name else LINUX_INSTALLER_CONTENT_TEMPLATE_DEF

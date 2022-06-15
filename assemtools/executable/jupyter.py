@@ -4,7 +4,7 @@
 import os,sys,subprocess,json,warnings
 
 USAGE = f'''
-命名: python -m assemtools.exe.jupyter [OPTION]...
+命名: python -m assemtools.executable.jupyter [OPTION]...
 Help for assemtools
 
 选项:

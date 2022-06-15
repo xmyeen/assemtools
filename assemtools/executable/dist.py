@@ -1,11 +1,11 @@
 # -*- coding:utf-8 -*-
 #!/usr/bin/env python
 
-from ..const.dist_defs import CONFIG_FILE_DEFAULT_DEF, DistTypeDefs
+from ..constant.dist_defs import CONFIG_FILE_DEFAULT_DEF, DistTypeDefs
 
 
 USAGE = f'''
-命令: python -m assemtools.exe.dist [OPTION]...
+命令: python -m assemtools.executable.dist [OPTION]...
 
 选项:
 -h,--help

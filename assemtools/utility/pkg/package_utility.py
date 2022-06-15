@@ -3,7 +3,7 @@
 
 import pkg_resources, os, stat, typing
 from ..string.string_utility import cov_snake_to_hump, cov_hump_to_snake
-from ...const.installer_defs import INSTALLER_CONTENT_TEMPLATE_DEF
+from ...constant.installer_defs import INSTALLER_CONTENT_TEMPLATE_DEF
 
 def cov_to_safer_package_name(name:str):
     return pkg_resources.safe_name(name).replace('-', '_')

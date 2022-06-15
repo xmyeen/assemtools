@@ -10,7 +10,9 @@ $EnvPy = "${EnvRoot}\Scripts\python.exe"
 
 Push-Location $CurrentScriptRoot
 
-Remove-Item -Force -Recurse -Path "${CurrentScriptRoot}\dist\*"
+if ( Test-Path -Path "${CurrentScriptRoot}\dist"  ) {
+    Remove-Item -Force -Recurse -Path "${CurrentScriptRoot}\dist\*"
+}
 
 if ( $i -or ( Test-Path -Path $EnvPy ) ) {
     python -m venv --clear $EnvRoot

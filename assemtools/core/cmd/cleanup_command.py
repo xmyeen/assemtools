@@ -3,7 +3,7 @@
 
 import os, shutil
 from distutils.core import Command
-from ...util.pkg import cov_to_safer_package_name
+from ...utility.pkg import cov_to_safer_package_name
 
 class cleanup(Command):
     description = 'Clean files'

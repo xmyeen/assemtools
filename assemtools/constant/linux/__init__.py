@@ -1,9 +1,7 @@
 # -*- coding:utf-8 -*-
 #!/usr/bin/env python
 
-import os
-
-UNIX_INSTALLER_CONTENT_TEMPLATE_DEF='''#!/bin/bash
+LINUX_INSTALLER_CONTENT_TEMPLATE_DEF = '''#!/bin/bash
 
 # >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 # Define
@@ -17,7 +15,7 @@ APP_DESCRIPTION_DEF="{APP_DESCRIPTION_DEF}"
 APP_PROGRAM_NAME_DEF="{APP_PROGRAM_NAME_DEF}"
 APP_WHEEL_NAME="{APP_WHEEL_NAME}"
 
-APP_PACKAGE_DIR_DEF="$CURR_SCRIPT_DIR_DEF/packages"
+APP_PYPI_DIR="$CURR_SCRIPT_DIR_DEF/packages"
 APP_ADMIN_PROGRAM_NAME_DEF="app_admin"
 
 APP_RUN_PROGRAM_COMMAND_NAME_DEF="$APP_NAME_DEF-c-run"
@@ -44,7 +42,7 @@ cat << EOF | sed -r 's/^\\s\\s\\s\\s//' | $pycmd -
         from pip._internal.utils.wheel import pkg_resources_distribution_for_wheel
 
         name = re.sub('[A-Z]', lambda m: '_' + m.group(0).lower(), "$APP_NAME_DEF").strip('_')
-        file_path = "$APP_PACKAGE_DIR_DEF/$APP_WHEEL_NAME"
+        file_path = "$APP_PYPI_DIR/$APP_WHEEL_NAME"
 
         with zipfile.ZipFile(file_path, allowZip64 = True) as z:
             dist = pkg_resources_distribution_for_wheel(z, name, file_path)
@@ -496,8 +494,8 @@ EOF
 echo "[I] Make-Directories : For $APP_PREFIX_DIR"
 mkdir -p $binary_dir $library_dir $config_dir $data_dir $temporary_dir $backup_dir $run_dir
 
-echo "[I] Install-Packages : From $APP_PACKAGE_DIR_DEF"
-$py_cmd -m pip install -U --force-reinstall --no-index $PIP_INSTALL_OPTION_DEF --find-links=$APP_PACKAGE_DIR_DEF $APP_PACKAGE_DIR_DEF/$APP_WHEEL_NAME
+echo "[I] Install-Packages : From $APP_PYPI_DIR"
+$py_cmd -m pip install -U --force-reinstall --no-index $PIP_INSTALL_OPTION_DEF --find-links=$APP_PYPI_DIR $APP_PYPI_DIR/$APP_WHEEL_NAME
 
 # Install admin
 echo "[I] Install-Admin : To $admin_program_file"
@@ -619,120 +617,3 @@ find $binary_dir -iname "$APP_NAME_DEF*" -exec chmod 777 {{}} \;
 
 echo "[I] End : Run '$binary_dir/$APP_NAME_DEF-c-*' scripts to start application"
 '''
-
-
-WIN32_INSTALLER_CONTENT_TEMPLATE_DEF = '''# -*- coding:utf-8 -*-
-
-import os, sys, warnings, socket, collections, zipfile, re, getopt, subprocess
-
-# >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
-# Define
-
-CURR_SCRIPT_DIR_DEF = os.path.dirname(os.path.abspath(__file__))
-
-PIP_INSTALL_OPTION_DEF = "{PIP_INSTALL_OPTION_DEF}"
-
-APP_NAME_DEF="{APP_NAME_DEF}"
-APP_DESCRIPTION_DEF="{APP_DESCRIPTION_DEF}"
-APP_PROGRAM_NAME_DEF="{APP_PROGRAM_NAME_DEF}"
-APP_WHEEL_NAME="{APP_WHEEL_NAME}"
-
-APP_PACKAGE_DIR_DEF=f"{{CURR_SCRIPT_DIR_DEF}}\\\\packages"
-
-# >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
-# Function
-
-def show_usage():
-    print('\\n'.join([
-        f"{{sys.argv[0]}} [--prefix=<路径>]",
-        "参数说明：",
-        f"  --prefix             安装程序的根路径"
-    ]))
-    pass
-
-
-def check_python():
-    print('[I]', 'This-Python', ':', sys.executable, '-', sys.version.replace('\\n', ' '))
-    try:
-        from pip._internal.utils.packaging import check_requires_python
-        from pip._internal.utils.wheel import wheel_dist_info_dir
-
-        name = re.sub('[A-Z]', lambda m: '_' + m.group(0).lower(), APP_NAME_DEF).strip('_')
-        file_path = f"{{APP_PACKAGE_DIR_DEF}}\\\\{{APP_WHEEL_NAME}}"
-
-        with zipfile.ZipFile(file_path, allowZip64 = True) as z:
-            info_dir = wheel_dist_info_dir(z, APP_NAME_DEF)
-            metadata = dict(re.findall(r"([\\w-]*)\\:\\s*(.*)\\s*", z.read(f'{{info_dir}}/METADATA').decode()))
-
-            python_require = metadata.get('Requires-Python')
-            if python_require and not check_requires_python(python_require, sys.version_info[:3]):
-                raise RuntimeError("Mismatch requiring '%s'" % (python_require or 'All'))
-    except:
-        exc_type, exc_value, exc_traceback_obj = sys.exc_info()
-        print('[E]', 'Check-Python-Error', ':', exc_value)
-        sys.exit(1)
-
-# >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
-# Variable
-
-Configer = collections.namedtuple("Configer", ["app_node", "app_prefix_dir"])
-configer = Configer(
-    app_node = socket.gethostname(),
-    app_prefix_dir = os.path.join(os.getenv('PROGRAMFILES'), APP_NAME_DEF)
-)
-# >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
-# Commandline
-
-opts, server_ids = getopt.getopt(sys.argv[1:], "he:", ["help", "prefix=", "env-source=" ])
-for name, value in opts:
-    if name in ("-h", "--help"):
-        show_usage()
-        sys.exit(0)
-    elif name in ("--prefix"):
-        configer = configer._replace(app_prefix_dir = value)
-
-# >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
-
-# Middle Variable
-binary_dir = os.path.join(configer.app_prefix_dir, "bin")
-library_dir = os.path.join(configer.app_prefix_dir, "lib")
-config_dir = os.path.join(configer.app_prefix_dir, "config")
-data_dir = os.path.join(configer.app_prefix_dir, "var")
-temporary_dir = os.path.join(configer.app_prefix_dir, "tmp")
-backup_dir = os.path.join(configer.app_prefix_dir, "bak")
-run_dir = os.path.join(configer.app_prefix_dir, "run")
-
-# Check python
-check_python()
-
-# Build virtual environment
-app_executable = os.path.join(configer.app_prefix_dir, "Scripts", "python.exe")
-if not os.path.exists(app_executable) or not os.path.samefile(sys.executable, app_executable):
-    print(f"[I] Make-Virual-Enviroment : For {{configer.app_prefix_dir}}")
-    os.makedirs(configer.app_prefix_dir, exist_ok=True)
-    subprocess.run([sys.executable, "-m", "venv", "--clear", configer.app_prefix_dir])
-
-for d in binary_dir, library_dir, config_dir, data_dir, temporary_dir, backup_dir, run_dir:
-    print(f"[I] Make-Directory : For {{d}}")
-    os.makedirs(d, exist_ok=True)
-
-print(f"[I] Install-Packages : From {{APP_PACKAGE_DIR_DEF}}")
-cmdlines = [
-    app_executable, 
-    "-m", 
-    "pip", 
-    "install", 
-    "-U", 
-    "--force-reinstall",
-    "--no-index", 
-    PIP_INSTALL_OPTION_DEF,
-    f"--find-links={{APP_PACKAGE_DIR_DEF}}",
-    os.path.join(APP_PACKAGE_DIR_DEF, APP_WHEEL_NAME)
-]
-subprocess.run([ cl for cl in cmdlines if cl ])
-
-print(f"[I] End : Run '{{binary_dir}}\\{{APP_NAME_DEF}}-*' scripts to start application")
-'''
-
-
-INSTALLER_CONTENT_TEMPLATE_DEF = WIN32_INSTALLER_CONTENT_TEMPLATE_DEF if 'nt' == os.name else UNIX_INSTALLER_CONTENT_TEMPLATE_DEF
