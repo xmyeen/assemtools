@@ -13,7 +13,8 @@ fi
 
 if [ -e venv ]
 then
-    venv/bin/python setup.py bdist_wheel bdist_app --rpm cleanup
+    #venv/bin/python setup.py bdist_wheel bdist_app --rpm cleanup
+    venv/bin/python setup.py bdist_wheel bdist_app cleanup
 fi
 
 popd

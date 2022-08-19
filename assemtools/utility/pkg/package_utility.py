@@ -1,7 +1,7 @@
 # -*- coding:utf-8 -*-
 #!/usr/bin/env python
 
-import pkg_resources, os, stat, typing
+import pkg_resources, os, stat, typing, warnings, re, sys, subprocess
 from ..string.string_utility import cov_snake_to_hump, cov_hump_to_snake
 from ...constant.installer_defs import INSTALLER_CONTENT_TEMPLATE_DEF
 
@@ -43,8 +43,50 @@ def walk_requirements(req_file: os.PathLike) -> typing.Iterable[str]:
             l = l.strip()
             if l.startswith('#'):
                 continue
-            elif l.startswith('-r'):
-                sub_req_file = l[2:].strip()
-                yield from walk_requirements(os.path.join(os.path.dirname(req_file), sub_req_file))
+
+            if l.startswith('-'):
+                for k, v in re.findall("(\\-[\\-\\w]*)[\\s=\\s]([^$^\\s]*)", l):
+                    if k in ('-r', '--requirement'):
+                        yield from walk_requirements(os.path.join(os.path.dirname(req_file), v))
+                    elif k in ('-e', '--editable'):
+                        if extra_require_string_groups := re.findall("\\[.*\\]", v):
+                            extra_require_string_group = extra_require_string_groups[0] or ""
+                            editable_project_dir = v[:0 - len(extra_require_string_group)]
+                        else:
+                            extra_require_string_group = ""
+                            editable_project_dir = v
+
+                        if not os.path.exists(os.path.join(editable_project_dir, "setup.py")):
+                            raise RuntimeError(f"Miss setup.py in '{editable_project_dir}'")
+
+                        pkg_name = subprocess.check_output([sys.executable, 'setup.py', '--name'], cwd = editable_project_dir).decode('utf-8').strip()
+
+                        if editable_project_dir.startswith('/'):
+                            editable_project_uri = 'file://' + editable_project_dir.replace('\\', '/')
+                        elif 0 > editable_project_dir.find('://'):
+                            editable_project_uri = 'file://' + '/' + editable_project_dir.replace('\\', '/')
+                        else:
+                            editable_project_uri = editable_project_dir
+                        # subprocess.run([sys.executable, '-m', 'pip', 'download', '-f', f'\'{l}\'', '--exists-action=w', '--dest=.'])
+                        yield f'{pkg_name}{extra_require_string_group} @ {editable_project_uri}'
+                    # elif l.startswith(('-i', '--index-url')):
+                    #     continue
+                    # elif l.startswith('--extra-index-url'):
+                    #     continue
+                    # elif l.startswith(('-f', '--find-links')):
+                    #     continue
+                    # elif l.startswith(('-c', '--constraint')):
+                    #     continue
+                    else:
+                        # warnings.warn(f"Skip an unrecognizable requirement: {k} {v}")
+                        continue
+            # elif 0 < l.find("://"):
+            #     #urllib3 @ https://github.com/urllib3/urllib3/archive/refs/tags/1.26.8.zip
+            #     #pyidentify @ git+http://iris.hikvision.com.cn/chenyuzhi/pyidentify.git
+            #     name, _, url_string = l.split(' ')
+            #     # subprocess.run([sys.executable, '-m', 'pip', 'download', '-f', f'\'{l}\'', '--exists-action=w', '--dest=.'])
+            #     yield name.strip()
+            # elif os.path.isfile(l):
+            #     print(l)
             else:
                 yield l

@@ -2,7 +2,7 @@
 #!/usr/bin/env python
 
 import base64
-from .winsvc import WIN32_APP_AGENT_SERVICE_DEF
+from .winsvc import WIN32_APP_AGENT_SERVICE_CONTENT_DEF
 
 WIN32_INSTALLER_CONTENT_SPLITTER_DEF = "\n#" + ">" * 100 + "\n"
 
@@ -25,7 +25,7 @@ APP_DESCRIPTION_DEF="{{APP_DESCRIPTION_DEF}}"
 APP_PROGRAM_NAME_DEF="{{APP_PROGRAM_NAME_DEF}}"
 APP_WHEEL_NAME_DEF="{{APP_WHEEL_NAME}}"
 APP_AGENT_NAME_DEF="{{APP_NAME_DEF}}-service-agent"
-APP_AGENT_PY_DEF = {base64.b64encode(WIN32_APP_AGENT_SERVICE_DEF.encode('utf-8'))}
+APP_AGENT_PY_DEF = {base64.b64encode(WIN32_APP_AGENT_SERVICE_CONTENT_DEF.encode('utf-8'))}
 ''',
 
 '''

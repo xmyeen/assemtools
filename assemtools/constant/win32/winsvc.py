@@ -1,7 +1,7 @@
 # -*- coding:utf-8 -*-
 #!/usr/bin/env python
 
-WIN32_APP_AGENT_SERVICE_DEF = '''# -*- coding:utf-8 -*-
+WIN32_APP_AGENT_SERVICE_CONTENT_DEF = '''# -*- coding:utf-8 -*-
 
 import socket, logging, inspect, os, sys, time, warnings, subprocess, time, signal
 import win32serviceutil, win32service, win32event, winerror, win32api, servicemanager

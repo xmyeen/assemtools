@@ -7,7 +7,7 @@ from distutils.core import Command
 # from distutils.command import bdist
 # from setuptools import Command
 # from pip import main as pip_main
-from pip._internal.cli.main import main as pip_main
+# from pip._internal.cli.main import main as pip_main
 from ...utility.pkg import cov_to_safer_package_name,cov_to_safer_package_version,cov_to_app_name,write_installer
 
 class bdist_app(Command):
@@ -168,7 +168,7 @@ class bdist_app(Command):
         os.makedirs(package_dir, exist_ok = True)
 
         # Make pip options
-        pip_install_opts = []
+        pip_install_opts = ['--disable-pip-version-check']
         if self.pre: pip_install_opts.append('--pre')
         if self.binary: pip_install_opts.extend(['--only-binary', self.binary])
 
@@ -177,7 +177,7 @@ class bdist_app(Command):
         if pip_install_opts: pip_wheel_opts.extend(pip_install_opts)
         if self.index_url: pip_wheel_opts.extend(f'--index-url={self.index_url}')
         if self.trusted_host: pip_wheel_opts.append(f'--trusted-host={self.trusted_host}')
-        pip_main(pip_wheel_opts)
+        subprocess.call([sys.executable, "-m", "pip"] + pip_wheel_opts)
 
         #Scan app program
         app_program_set = set()
