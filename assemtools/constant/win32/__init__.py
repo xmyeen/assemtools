@@ -36,9 +36,10 @@ def show_usage():
         f"{{sys.argv[0]}} [--prefix=<路径>]",
         "参数说明：",
         f"  --prefix=<Directory>            程序安装的根目录",
-        f"  --win-bindir=<Directory>        指定Windows二进制目录，用于存放可执行程序或动态库；被指定的目录需要添加到环境变量。"
+        f"  --win-bindir=<Directory>        指定Windows二进制目录，用于存放可执行程序或动态库；被指定的目录需要添加到环境变量。",
+        f"  --requirement=<File>            额外的安装的依赖，默认文件：{{CURR_SCRIPT_DIR_DEF}}\\\\requirements.txt。",
+        f"  --offline                       离线安装，此模型下缺失的包，不会远程获取，可以放在本地，并通过requirements.txt导入。"
     ]))
-    pass
 
 def check_python(pypi_dir:str):
     print('[I]', 'This-Python', ':', sys.executable, '-', sys.version.replace('\\n', ' '))
@@ -60,6 +61,15 @@ def check_python(pypi_dir:str):
         exc_type, exc_value, exc_traceback_obj = sys.exc_info()
         print('[E]', 'Check-Python-Error', ':', exc_value)
         sys.exit(1)
+
+def copy_base_executable_binaries(outdir:str):
+    win_bindir_path = pathlib.Path(outdir)
+    if not win_bindir_path.exists(): win_bindir_path.mkdir(parents = True)
+
+    base_dir_path = pathlib.Path(os.path.dirname(sys.executable))
+    for src_binfile in base_dir_path.glob("*.dll"):
+        print("Copy %s into %s" % (src_binfile, win_bindir_path))
+        shutil.copy(src_binfile, win_bindir_path)
 
 def copy_pywin32_binaries(py_executable:str, outdir:str):
     win_bindir_path = pathlib.Path(outdir)
@@ -84,27 +94,33 @@ def write_py(o, b64_py, **parameters):
 '''
 # Variable
 
-Configer = collections.namedtuple("Configer", ["app_node", "app_prefix_dir", "win_bindir"])
+Configer = collections.namedtuple("Configer", ["app_node", "app_prefix_dir", "win_bindir", "requirement_file", "enable_offline"])
 configer = Configer(
     app_node = socket.gethostname(),
     app_prefix_dir = os.path.join(os.getenv('PROGRAMFILES'), APP_NAME_DEF),
     #win_bindir = os.path.join(os.getenv("SystemRoot"), "system32")
-    win_bindir = None
+    win_bindir = None,
+    requirement_file = os.path.join(CURR_SCRIPT_DIR_DEF, "requirements.txt"),
+    enable_offline = False
 )
 ''',
 
 '''
 # Commandline
 
-opts, server_ids = getopt.getopt(sys.argv[1:], "he:", ["help", "prefix=", "env-source=", "win-bindir="])
+opts, server_ids = getopt.getopt(sys.argv[1:], "he:", ["help", "offline", "prefix=", "env-source=", "win-bindir=", "requirement="])
 for name, value in opts:
     if name in ("-h", "--help"):
         show_usage()
         sys.exit(0)
-    elif name in ("--prefix"):
+    elif name in ("--prefix", ):
         configer = configer._replace(app_prefix_dir = value)
-    elif name in ("--win-bindir"):
+    elif name in ("--win-bindir", ):
         configer = configer._replace(win_bindir = value)
+    elif name in ("--requirement", ):
+        configer = configer._replace(requirement_file = value)
+    elif name in ("--offline", ):
+        configer = configer._replace(enable_offline = True)
 ''',
 
 '''
@@ -117,6 +133,8 @@ app_executable = os.path.join(winexec_dir, "python.exe")
 
 app_win_bindir = configer.win_bindir or winexec_dir
 app_winsvc_executable = os.path.join(app_win_bindir, "PythonService.exe") 
+
+app_pip_options = PIP_INSTALL_OPTION_DEF.split(" ")
 
 pypi_dir = os.path.join(CURR_SCRIPT_DIR_DEF, "packages")
 ''',
@@ -137,27 +155,36 @@ for d in app_dirs:
     print(f"[I] Make-Directory : For {{d}}")
     os.makedirs(d, exist_ok=True)
 
-print(f"[I] Install-Packages : From {{pypi_dir}}")
-cmdlines = [
-    app_executable, 
-    "-m", 
-    "pip", 
-    "install", 
-    "-U", 
-    "--force-reinstall",
-    "--no-index", 
-    PIP_INSTALL_OPTION_DEF,
-    f"--find-links={{pypi_dir}}",
-    os.path.join(pypi_dir, APP_WHEEL_NAME_DEF)
-]
-subprocess.run([ cl for cl in cmdlines if cl ])
+app_pip_options.append("-U")
+app_pip_options.append("--force-reinstall")
+app_pip_options.append("--use-feature=in-tree-build")
+if configer.enable_offline: app_pip_options.append("--no-index")
+
+if os.path.exists(configer.requirement_file):
+    print(f"[I] Install-Requirements : From {{configer.requirement_file}}")
+    cmdlines = \\
+        [app_executable, "-m", "pip", "install"] + \\
+        app_pip_options + \\
+        [ "-r", configer.requirement_file ]
+    subprocess.run([ cl for cl in cmdlines if cl ])
+
+if os.path.exists(pypi_dir):
+    print(f"[I] Install-Packages : From {{pypi_dir}}")
+    cmdlines = \\
+        [app_executable, "-m", "pip", "install", f"--find-links={{pypi_dir}}"] + \\
+        app_pip_options + \\
+        [ os.path.join(pypi_dir, APP_WHEEL_NAME_DEF) ]
+    subprocess.run([ cl for cl in cmdlines if cl ])
 ''',
 
 '''
 # Make windows service
 print(f"[I] Install-Win32-Service")
-copy_pywin32_binaries(app_executable, app_win_bindir)
-if not os.path.exists(app_winsvc_executable):
+copy_base_executable_binaries(app_win_bindir)
+for py_executable in (app_executable, sys.executable):
+    copy_pywin32_binaries(py_executable, app_win_bindir)
+    if os.path.exists(app_winsvc_executable): break
+else:
     warnings.warn("[E] Lack win32 service binaries. Please run '\\"%s\\" -m pip install pywin32' before!!!"  % (sys.executable))
     os.abort()
 
