@@ -6,9 +6,8 @@
 # separate terms of service, privacy policy, and support
 # documentation.
 
-name: 预发布
+name: 发布
 
-# 新建TAG时自动发布RELEASE
 on:
   release:
     types: [published]
@@ -18,7 +17,6 @@ permissions:
 
 jobs:
   deploy:
-    if: "github.event.release.prerelease"
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v3
@@ -43,6 +41,11 @@ jobs:
         artifactErrorsFailBuild: true
         # An optional set of paths representing artifacts to upload to the release. This may be a single path or a comma delimited list of paths (or globs)
         artifacts: "dist/*.whl"
-        prerelease: true
+        prerelease: false
         # The Github token.
         token: ${{ secrets.DEPLOY_TOKEN }}
+    - name: Publish package
+      uses: pypa/gh-action-pypi-publish@27b31702a0e7fc50959f5ad993c78deac1bdfc29
+      with:
+        user: __token__
+        password: ${{ secrets.PYPI_API_TOKEN }}
