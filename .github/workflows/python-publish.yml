@@ -10,7 +10,7 @@ name: 发布PYPA
 
 on:
   release:
-    types: [released]
+    types: [published]
 
 permissions:
   contents: read
