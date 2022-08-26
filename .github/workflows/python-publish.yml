@@ -36,6 +36,20 @@ jobs:
     - name: Find wheel package
       run: |
         find dist/ -iname "assemtools*.whl"
+    - name: Create Release
+      # You may pin to the exact commit or the version.
+      # uses: ncipollo/release-action@58ae73b360456532aafd58ee170c045abbeaee37
+      uses: ncipollo/release-action@v1.10.0
+      with:
+        # An optional flag which indicates if we should update a release if it already exists. Defaults to false.
+        allowUpdates: false
+        # An optional flag which indicates if artifact read or upload errors should fail the build.
+        artifactErrorsFailBuild: true
+        # An optional set of paths representing artifacts to upload to the release. This may be a single path or a comma delimited list of paths (or globs)
+        artifact: "dist/*.whl"
+        prerelease: true
+        # The Github token.
+        token: ${{ github.deployToken }}
     - name: Publish package
       if: false
       uses: pypa/gh-action-pypi-publish@27b31702a0e7fc50959f5ad993c78deac1bdfc29
