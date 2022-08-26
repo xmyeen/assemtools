@@ -12,17 +12,15 @@ name: 预发布
 on:
   release:
     types:
-    - edited
-    - created
+    - published
 
 permissions:
   contents: read
 
 jobs:
   deploy:
-
+    if: "github.event.release.prerelease"
     runs-on: ubuntu-latest
-
     steps:
     - uses: actions/checkout@v3
     - name: Set up Python
