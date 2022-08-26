@@ -10,9 +10,10 @@ name: 预发布
 
 # 新建TAG时自动发布RELEASE
 on:
-  push:
-    tags:
-    - v*
+  release:
+    type:
+    - edited
+    - created
 
 permissions:
   contents: read
