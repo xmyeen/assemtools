@@ -6,8 +6,9 @@
 # separate terms of service, privacy policy, and support
 # documentation.
 
-name: Upload Python Package
+name: 发布RELEASE
 
+# 新建TAG时自动发布RELEASE
 on:
   push:
     tags:
