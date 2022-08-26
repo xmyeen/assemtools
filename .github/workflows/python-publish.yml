@@ -33,9 +33,6 @@ jobs:
         pip install build wheel
     - name: Build package
       run: python setup.py bdist_wheel
-    - name: Find wheel package
-      run: |
-        find dist/ -iname "assemtools*.whl"
     - name: Create Release
       # You may pin to the exact commit or the version.
       # uses: ncipollo/release-action@58ae73b360456532aafd58ee170c045abbeaee37
@@ -46,14 +43,8 @@ jobs:
         # An optional flag which indicates if artifact read or upload errors should fail the build.
         artifactErrorsFailBuild: true
         # An optional set of paths representing artifacts to upload to the release. This may be a single path or a comma delimited list of paths (or globs)
-        artifact: "dist/*.whl"
+        artifacts: "dist/*.whl"
         prerelease: true
         # The Github token.
         token: ${{ secrets.DEPLOY_TOKEN }}
         tag: "v0.0.1"
-    - name: Publish package
-      if: false
-      uses: pypa/gh-action-pypi-publish@27b31702a0e7fc50959f5ad993c78deac1bdfc29
-      with:
-        user: __token__
-        password: ${{ secrets.PYPI_API_TOKEN }}
