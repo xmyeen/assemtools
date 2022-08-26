@@ -9,8 +9,9 @@
 name: Upload Python Package
 
 on:
-  schedule:
-  - cron: "0/5 * * * *"
+  push:
+    branches:
+    - xmyeen-patch-1
 
 permissions:
   contents: read
