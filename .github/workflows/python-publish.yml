@@ -50,6 +50,7 @@ jobs:
         prerelease: true
         # The Github token.
         token: ${{ secrets.DEPLOY_TOKEN }}
+        tag: "v0.0.1"
     - name: Publish package
       if: false
       uses: pypa/gh-action-pypi-publish@27b31702a0e7fc50959f5ad993c78deac1bdfc29
