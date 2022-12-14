@@ -4,7 +4,7 @@
 from assemtools import setup, find_packages, on_version, on_description, on_requirement, on_data_dirs
 
 setup(
-    on_version('1.0.0'),
+    on_version('1.0.0', 'a', 'systime', 'git'),
     on_description("示例样例"),
     on_requirement(),
     on_data_dirs(

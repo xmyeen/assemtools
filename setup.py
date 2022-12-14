@@ -23,7 +23,7 @@ def get_installing_requirements():
 
 setup(
     name="assemtools",
-    version="0.0.1",
+    version="0.0.2.dev1",
     author='xmyeen',
     author_email="xmyeen@126.com",
     url="https://github.com/xmyeen/assemtools",
@@ -33,7 +33,8 @@ setup(
     packages=find_packages(exclude=["*.tests", "*.tests.*", "tests.*", "tests"]),
     platforms=["all"],
     classfiers = [
-        "Programming Language :: Python :: 3",
+        "Programming Language :: Python :: 3.10",
+        "Programming Language :: Python :: 3.11",
         "Operating System :: OS Independent"
     ],
     install_requires = get_installing_requirements() + [

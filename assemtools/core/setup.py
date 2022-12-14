@@ -1,36 +1,68 @@
 # -*- coding:utf-8 -*-
 #!/usr/bin/env python
 
-import os, typing, datetime, glob, warnings, pathlib, pkg_resources
+import os, re, typing, datetime, glob, warnings, pathlib, pkg_resources, subprocess
 from setuptools import setup as setuptools_setup
-from .cmd import bdist_app,cleanup
+from .command import bdist_app, cleanup
 from ..utility.os import walk_relative_file
 from ..utility.pkg import cov_to_program_name, cov_program_name_to_module_name, walk_requirements
 
-def on_version(v:str, p:str = None, b:str = None) -> typing.Iterable[typing.Dict[str,str]]:
-    '''setuptools版本生成器
+def on_version(final_release:str, pre_release:str|None = None, post_release:str|int|None = None, dev_release:str|int|None = None) -> typing.Iterable[dict[str,typing.Any]]:
+    '''版本生成方法
+
+    版本格式：[N!]N(.N)*[{a|b|rc}N][.postN][.devN]
+    
+    标准：PEP440(https://aa-turner.github.io/peps/pep-0440/)
+    
+    final_release {str} SemVer2.0版本的基本字符串，如：1.0.0
+    
+    pre_release {str} 发布版本标识，取值：dev | a | alpha | b | beta | c | rc | release
+    
+    post_release {str|int} 是否附加Post-release信息。可以设置一个整数值。或者传"systime"附加系统时间。
+
+    dev_release {str|int} 是否附加Developmental release信息。可以设置整数值，或者传“git”附加git最后一次提交日志的日期。
     '''
-    v = v if v else '0.0.1'
+    final_version = final_release
 
-    if p is None:
-        pass
-    elif p in ['a', 'alpha']:
-        v = v + 'a'
-    elif p in ['b', 'beta']:
-        v = v + 'b'
-    elif p in ['c', 'rc']:
-        v = v + 'c'
+    if pre_release is not None:
+        pre_release_match = re.match("([a-zA-Z]+)(\\d*)", pre_release)
+        if pre_release_match is None: raise RuntimeError(f"Invalid Pre-release tag: {pre_release}")
 
-    if p is None or b is None:
+        alphabetical_pre_release_value = pre_release_match and pre_release_match.group(1)
+        numberal_pre_release_value = (pre_release_match and pre_release_match.group(2)) or 0
+
+        if alphabetical_pre_release_value.lower() in ('a', 'alpha'):
+            final_version += f"a{numberal_pre_release_value}"
+        elif alphabetical_pre_release_value.lower() in ('b', 'beta'):
+            final_version += f"b{numberal_pre_release_value}"
+        elif alphabetical_pre_release_value.lower() in ('c', 'rc', 'release'):
+            final_version += f"rc{numberal_pre_release_value}"
+        else:
+            raise RuntimeError(f"Invalid Pre-release tag: {pre_release}")
+    
+    if post_release is None:
         pass
-    elif b in ['', '_', '-']:
-        v = v + datetime.datetime.now().strftime("%Y%m%d%H%M%S")
+    elif isinstance(post_release, int):
+        final_version += f'.post{post_release}'
+    elif post_release == "systime":
+        final_version += f'.post{datetime.datetime.now().strftime("%Y%m%d%H%M%S")}'
     else:
-        v = v + b
+        raise RuntimeError(f"Invalid Post-release tag: {post_release}")
 
-    yield dict(version = v)
+    if dev_release is None:
+        pass
+    elif isinstance(dev_release, int):
+        final_version += f'.dev{dev_release}'
+    elif dev_release == 'git':
+        commit_timestamp = subprocess.getoutput('git log -n 1 --pretty=format:"%cd" --date=format:"%Y%m%d%H%M%S"').strip()
+        if not re.match("\\d+", commit_timestamp): raise RuntimeError(f"Fetch git commit log failed: {commit_timestamp}")
+        final_version += f".dev{commit_timestamp}"
+    else:
+        raise RuntimeError(f"Invalid Dev-release tag: {dev_release}")
 
-def on_description(description:str = None) -> typing.Iterable[typing.Dict[str,str]]:
+    yield dict(version = final_version)
+
+def on_description(description:str|None = None) -> typing.Iterable[dict[str,typing.Any]]:
     '''setuptools描述生成器
     '''
     if description:
@@ -43,7 +75,7 @@ def on_description(description:str = None) -> typing.Iterable[typing.Dict[str,st
                 long_description = f.read()
             )
 
-def on_requirement(*req_dirs: os.PathLike) -> typing.Iterable[typing.Dict[str,str]]:
+def on_requirement(*req_dirs: os.PathLike) -> typing.Iterable[dict[str,typing.Any]]:
     '''setuptools依赖生成器
     '''
     setup_option = {}
@@ -68,7 +100,7 @@ def on_requirement(*req_dirs: os.PathLike) -> typing.Iterable[typing.Dict[str,st
 
     yield setup_option
 
-def on_data_dirs(**data_dir_info:typing.Tuple) -> typing.Iterable[typing.Dict[str,str]]:
+def on_data_dirs(**data_dir_info:tuple) -> typing.Iterable[dict[str,typing.Any]]:
     '''setuptools数据文件生成器
     '''
     data_dir_info.setdefault('bin', ('bin', '*'))
@@ -86,7 +118,7 @@ def on_data_dirs(**data_dir_info:typing.Tuple) -> typing.Iterable[typing.Dict[st
 
     yield dict(data_files = [ (n, list(s)) for n, s in data_file_info.items() ])
 
-def setup(*on_option_generators:typing.Iterable[typing.Dict[str,str]], **setup_option:typing.Any):
+def setup(*on_option_generators:typing.Iterable[dict[str,str]], **setup_option:typing.Any):
     '''执行setup设置方法
     '''
     name = setup_option.get("name")

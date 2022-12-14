@@ -35,7 +35,7 @@ def write_installer(f: typing.IO, app_name:str, app_wheel_name:str, *app_program
     if f.name:
         os.chmod(f.name, stat.S_IRWXU  | stat.S_IRWXG | stat.S_IROTH  | stat.S_IXOTH )
 
-def walk_requirements(req_file: os.PathLike) -> typing.Iterable[str]:
+def walk_requirements(req_file: str) -> typing.Iterable[str]:
     '''递归扫描requirements.txt的包
     '''
     with open(req_file, mode='r', encoding='utf-8') as f:

@@ -13,7 +13,7 @@ Help for assemtools
 
 def main():
     try:
-        import ipykernal
+        import ipykernal # type: ignore
     except BaseException as e:
         warnings.warn("Import ipykernal failed - Please install or repair it - " + str(e))
         sys.exit(1)
@@ -44,7 +44,7 @@ def main():
             APP_ENV = "dev"
         )
         cmd = ' '.join(["jupyter", "notebook"] + sys.argv[1:])
-        sys.exit(subprocess.run(cmd, env=envs, shell=True))
+        sys.exit(subprocess.call(cmd, env=envs, shell=True))
     except KeyboardInterrupt:
         pass
     except BaseException as e:

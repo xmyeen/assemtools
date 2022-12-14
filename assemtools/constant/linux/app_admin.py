@@ -89,7 +89,7 @@ class AppAdminister(object):
     def set_applicaiton_console(self, console:str): self.__app_console =  re.sub(r'^([\\\\d\\\\w\\\\.]+)\\\\:(\\\\d+)$', '/dev/tcp/\\\\\\\\1/\\\\\\\\2', console.strip()) if console else None
     app_console = property(get_application_console, set_applicaiton_console, None, 'Application Console Output')
 
-    def scan_program_status(self) -> typing.Dict[str, typing.Dict[str, typing.Any]]:
+    def scan_program_status(self) -> dict[str, dict[str, typing.Any]]:
         program_status_info = {{ name : [] for name in APP_PROGRAM_NAME_DEF.split(",") }}
 
         for exe in glob.glob('/proc/*/exe'):
