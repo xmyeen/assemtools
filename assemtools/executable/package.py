@@ -26,6 +26,9 @@ USAGE = f'''
 --pre
     使用“pre-release”命令
 
+--pypi-upload=<仓库名字>
+    上传pypi仓库
+
 --artifact-type=<app/rpm/deb>
     制品类型。app时，视情况生成tar/zip格式，其他请根据操作系统的情况进行正确设置。
 
@@ -40,7 +43,7 @@ def parse_command_arguments(*cmd_args: str) -> tuple[dict[str, str], list[str]]:
     setting = {}
     setting.setdefault('artifact_plugins', [])
 
-    opts, args = getopt.getopt(list(cmd_args),'hd:r:i:', ['help', 'dist-dir=', 'requirements=', 'index-url=', 'trusted-host=', 'pre', 'artifact-type=', 'artifact-plugin=', 'cleanup='])
+    opts, args = getopt.getopt(list(cmd_args),'hd:r:i:', ['help', 'dist-dir=', 'requirements=', 'index-url=', 'trusted-host=', 'pre', 'pypi-upload=', 'artifact-type=', 'artifact-plugin=', 'cleanup='])
     for opt,val in opts:
         if opt in ('-h','--help'):
             print(USAGE)
@@ -55,6 +58,8 @@ def parse_command_arguments(*cmd_args: str) -> tuple[dict[str, str], list[str]]:
             setting.update(trusted_host = val)
         elif opt in ('--pre', ):
             setting.update(pre_release = True)
+        elif opt in ('--pypi-upload', ):
+            setting.update(pypi_upload = val)
         elif opt in ('--artifact-type', ):
             setting.update(artifact_type = val)
         elif opt in ('--artifact-plugin', ):
@@ -89,6 +94,12 @@ def main():
             command_lines.append("--deb")
     if artifact_plugins := setting.get("artifact_plugins"):
         command_lines.append("--plugin=%s" %(":".join(artifact_plugins)))
+
+    #upload
+    if pypi_upload := setting.get('pypi_upload'):
+        command_lines.append("upload")
+        command_lines.append("-r")
+        command_lines.append(pypi_upload)
 
     #cleanup
     if cleanup_type := setting.get('cleanup'):
