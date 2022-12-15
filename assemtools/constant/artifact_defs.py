@@ -14,12 +14,13 @@ CONFIG_FILE_DEFAULT_DEF = [
 ]
 
 @enum.unique
-class DistTypeDefs(enum.Enum):
+class ArtifactTypeDefs(enum.Enum):
     APP = 0
     SVC = 1
 
-    def get_all_names(self) -> list[str]:
-        return [ e.get_type_name() for e in DistTypeDefs.__members__.values() ]
+    @staticmethod
+    def get_all_names() -> list[str]:
+        return [ e.get_type_name() for e in ArtifactTypeDefs.__members__.values() ]
 
     def get_type_name(self) -> str:
         return self.name.lower()

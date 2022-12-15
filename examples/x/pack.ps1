@@ -21,7 +21,7 @@ if ( $i -or ( Test-Path -Path $EnvPy ) ) {
 }
 
 if ( Test-Path -Path $EnvPy ) {
-    & "$EnvPy" setup.py bdist_wheel bdist_app cleanup
+    & "$EnvPy" setup.py bdist_wheel bdist_artifact cleanup
 }
 
 Pop-Location

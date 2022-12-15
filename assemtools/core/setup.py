@@ -3,7 +3,7 @@
 
 import os, re, typing, datetime, glob, warnings, pathlib, pkg_resources, subprocess
 from setuptools import setup as setuptools_setup
-from .command import bdist_app, cleanup
+from .command import bdist_artifact, cleanup
 from ..utility.os import walk_relative_file
 from ..utility.pkg import cov_to_program_name, cov_program_name_to_module_name, walk_requirements
 
@@ -82,6 +82,7 @@ def on_requirement(*req_dirs: os.PathLike) -> typing.Iterable[dict[str,typing.An
 
     all_req_dir = *req_dirs, os.path.join(os.getcwd(), 'req')
     for req_dir in all_req_dir:
+        if not os.path.exists(req_dir): continue
         for name in os.listdir(req_dir):
             pkgs = list(walk_requirements(os.path.join(req_dir, name)))
             if 'requirements.txt' == name:
@@ -134,7 +135,7 @@ def setup(*on_option_generators:typing.Iterable[dict[str,str]], **setup_option:t
     # Update cmdclass
     setup_option.setdefault("cmdclass", {})
     setup_option['cmdclass'].update(
-        bdist_app = bdist_app,
+        bdist_artifact = bdist_artifact,
         cleanup = cleanup
     )
 

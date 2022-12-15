@@ -2,8 +2,9 @@
 #!/usr/bin/env python
 # type: ignore
 
-import sys, os, re, zipfile, shutil, subprocess, glob
+import sys, os, re, zipfile, shutil, subprocess, glob, datetime, csv, subprocess
 from sysconfig import get_python_version
+from distutils import log
 from distutils.core import Command
 from distutils.dist import Distribution
 # from distutils.command import bdist
@@ -12,16 +13,17 @@ from distutils.dist import Distribution
 # from pip._internal.cli.main import main as pip_main
 from ...utility.pkg import cov_to_safer_package_name, cov_to_safer_package_version, cov_to_app_name, write_installer
 
-class bdist_app(Command):
-    description = 'Create an application'
+class bdist_artifact(Command):
+    description = 'Create an artifact'
 
     user_options = [
         ('binary', None, "Do not use source packages. Can be supplied multiple times, and each time adds to the existing value. Accepts either :all: to disable all source packages, :none: to empty the set, or one or more package names with commas between them. Packages without binary distributions will fail to install when this option is used on them."),
         ('pre', None, "Include pre-release and development versions. By default, pip only finds stable versions."),
-        ('index-url', 'i', "Base URL of the Python Package Index (default https://mirrors.aliyun.com/pypi/simple). This should point to a repository compliant with PEP 503 (the simple repository API) or a local directory laid out in the same format"),
-        ('trusted-host', 'h', "Mark this host or host:port pair as trusted, even though it does not have valid or any HTTPS"),
-        ('rpm', None, 'Make rpm distribution'),
-        ('deb', None, 'Make deb distribution')
+        ('rpm', None, 'Make rpm artifact'),
+        ('deb', None, 'Make deb artifact'),
+        ('index-url=', 'i', "Base URL of the Python Package Index (default https://mirrors.aliyun.com/pypi/simple). This should point to a repository compliant with PEP 503 (the simple repository API) or a local directory laid out in the same format"),
+        ('trusted-host=', 'h', "Mark this host or host:port pair as trusted, even though it does not have valid or any HTTPS"),
+        ('plugin=', None, 'The artifact plugin module. Split with \':\'.')
     ]
 
     boolean_options = [
@@ -44,10 +46,11 @@ class bdist_app(Command):
         # self.pip_buiding_dir = None
         self.rpm = None
         self.deb = None
+        self.plugin = None
 
     def finalize_options(self):
         bdist_base = self.get_finalized_command('bdist').bdist_base
-        self.bdist_building_dir = os.path.join(bdist_base, 'bdist_app')
+        self.bdist_building_dir = os.path.join(bdist_base, 'bdist_artifact')
         # self.pip_buiding_dir = os.path.join(bdist_base, 'pip_building')
 
         self.set_undefined_options('bdist', ("dist_dir", "dist_dir"))
@@ -209,18 +212,27 @@ class bdist_app(Command):
             shutil.copy('LICENSE', work_dir)
 
         # Write application distribution
+        self.announce(f"Make archive: {app_archive}", level = log.INFO)
         with zipfile.ZipFile(app_archive, 'w', zipfile.ZIP_DEFLATED) as z:
             for root_dir, _, file_names in os.walk(work_dir):
                 for file_name in file_names:
                     file_path = os.path.join(root_dir, file_name)
-                    z.write(file_path, os.path.relpath(file_path, work_dir))
+                    file_arc_path = os.path.relpath(file_path, work_dir)
+                    z.write(file_path, file_arc_path)
+                    self.announce(f"Add '{file_path}' as '{file_arc_path}'", level = log.INFO)
 
-        return app_archive
-        
+        return app_archive        
 
     def run(self):
+        ##########################################################################
+        # 变了定义
+        ##########################################################################
+
         dist_files = getattr(self.distribution, 'dist_files', [])
 
+        ##########################################################################
+        # 生成制品
+        ##########################################################################
         # Find wheel distribution
         wheel_files = [ v for k, _, v in dist_files if 'bdist_wheel' == k ]
         wheel_file = wheel_files and wheel_files[0]
@@ -229,8 +241,38 @@ class bdist_app(Command):
 
         # Make common archive
         app_archive = self.__make_common_archive(wheel_file)
-        dist_files.append(('bdist_app', get_python_version(), app_archive))
+        dist_files.append(('bdist_artifact', get_python_version(), app_archive))
 
         # Make rpm artifact
         if self.rpm and ( artifact := self.__make_rpm_artifact(app_archive) ):
-            dist_files.append(('bdist_app', get_python_version(), artifact))
+            dist_files.append(('bdist_artifact', get_python_version(), artifact))
+
+        ##########################################################################
+        # 生成报告
+        ##########################################################################
+        timestamp_str = datetime.datetime.now().strftime("%Y%m%d%H%M%S")
+
+        report_file = os.path.join(self.dist_dir, f'artifact_{timestamp_str}.csv') 
+        report_dir = os.path.dirname(report_file)
+        os.makedirs(report_dir, exist_ok = True)
+
+        dist_files.append(('bdist_artifact', get_python_version(), report_file))
+
+        with open(report_file, mode = 'w', encoding='utf-8') as csvfile:
+            writer = csv.writer(csvfile)
+            writer.writerow(["type", "file"])
+            writer.writerows([(dist_type, dist_file) for dist_type, _, dist_file in dist_files])
+        
+        self.announce(f"Review: {report_file}", level = log.INFO)
+
+        ##########################################################################
+        # 插件处理
+        ##########################################################################
+        if self.plugin:
+            for plugin_module in self.plugin.strip().split(":"):
+                pm = plugin_module.strip()
+                if not pm: continue
+                try:
+                    subprocess.run([sys.executable, "-m", pm, report_file])
+                except ex:
+                    self.warn(f"Run plugin failed: {str(ex)}")
