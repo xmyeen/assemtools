@@ -274,5 +274,5 @@ class bdist_artifact(Command):
                 if not pm: continue
                 try:
                     subprocess.run([sys.executable, "-m", pm, report_file])
-                except ex:
+                except Exception as ex:
                     self.warn(f"Run plugin failed: {str(ex)}")
