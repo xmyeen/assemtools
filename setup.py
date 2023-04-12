@@ -37,9 +37,9 @@ def gen_version(semver, pre_release_or_none = None, pre_number_or_none = None):
                 final_version_string = "%sa%d" % (final_version_string, final_pre_number)
             elif 'b' in pre_releases:
                 final_version_string = "%sb%d" % (final_version_string, final_pre_number)
-                
+
             if 'dev' in pre_releases:
-                final_version_string = "%s.dev%d" % (final_version_string, final_timestamp_str)
+                final_version_string = "%s.dev%s" % (final_version_string, final_timestamp_str)
 
     return final_version_string
 
