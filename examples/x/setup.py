@@ -1,7 +1,7 @@
 # -*- coding:utf-8 -*-
 #!/usr/bin/env python
 
-from assemtools import setup, find_packages, on_version, on_description, on_requirement, on_data_dirs
+from assemtools import setup, find_packages, on_version, on_description, on_requirement, on_data_dirs, on_entry_points
 
 setup(
     on_version('1.0.0', 'a', 'systime', 'git'),
@@ -10,6 +10,9 @@ setup(
     on_data_dirs(
         config = ('config', 'app.ini'),
         data = ('var', '**/**.csv')
+    ),
+    on_entry_points(
+        ('console_scripts', 'x/*/__main__.py', "service_main")
     ),
 
     name = "x",

@@ -3,10 +3,10 @@
 
 import time
 
-def main():
+def service_main():
     while True:
         print('Hello,xapp!')
         time.sleep(10)
 
 if __name__ == '__main__':
-    main()
+    service_main()

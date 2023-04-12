@@ -15,6 +15,9 @@ def cov_to_app_name(name:str) -> str:
     return cov_snake_to_hump(cov_to_safer_package_name(name))
 
 def cov_to_program_name(name:str, *module_names:str) -> str:
+    '''转换模块名字成为程序名字
+    (name="my-app", module_names=["web","client"]) => myApp-web-client
+    '''
     return '-'.join(map(lambda s: cov_snake_to_hump(cov_to_safer_package_name(s)), [name, *module_names]))
 
 def cov_program_name_to_module_name(program_name:str) -> str:

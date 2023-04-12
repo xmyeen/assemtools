@@ -119,18 +119,48 @@ def on_data_dirs(**data_dir_info:tuple) -> typing.Iterable[dict[str,typing.Any]]
 
     yield dict(data_files = [ (n, list(s)) for n, s in data_file_info.items() ])
 
+def on_entry_points(*script_glob_finders: tuple[str, str, str]) -> typing.Iterable[dict[str,typing.Any]]:
+    entry_point : dict[str, list[str]] = {}
+
+    for script_name, script_glob_string, function_name in script_glob_finders:
+        if script_name not in ("console_scripts", "gui_scripts"):
+            warnings.warn(f"Unkown script name. Skip: {script_name}")
+            continue
+
+        if script_glob_string.startswith(("/", os.sep, ".")):
+            warnings.warn(f"Path can not start with '/.': {script_glob_string}")
+            continue
+
+        if not script_glob_string.endswith("__main__.py"):
+            warnings.warn(f"Path must end with '__main__.py': {script_glob_string}")
+            continue
+        
+        glob_string = script_glob_string 
+        
+        if glob_string.endswith('/'):
+            glob_string = glob_string[:-1]
+
+        for file_path in glob.glob(glob_string):
+            name, *module_names, _ = file_path.split(os.sep)
+            
+            program_name = cov_to_program_name(name, *module_names)
+            module_name = cov_program_name_to_module_name(program_name)
+
+            value = f"{program_name} = {module_name}.__main__:{function_name}"
+            if script_name not in entry_point:
+                entry_point.update({ script_name : [value] })
+            else:
+                entry_point[script_name].append(value)
+    
+    if entry_point:
+        yield dict(entry_points = entry_point)
+
 def setup(*on_option_generators:typing.Iterable[dict[str,str]], **setup_option:typing.Any):
     '''执行setup设置方法
     '''
     name = setup_option.get("name")
     if not name:
-        # warnings.warn("Miss 'name' - Abort")
         raise Exception("Miss 'name' - Abort")
-
-    # Merge option
-    for on_option_generator in on_option_generators:
-        for on_option in on_option_generator:
-            setup_option.update(on_option)
 
     # Update cmdclass
     setup_option.setdefault("cmdclass", {})
@@ -139,15 +169,10 @@ def setup(*on_option_generators:typing.Iterable[dict[str,str]], **setup_option:t
         cleanup = cleanup
     )
 
-    # Autogenerate entry_points
-    if os.path.exists(name):
-        setup_option.setdefault('entry_points', {})
-        setup_option['entry_points'].setdefault('console_scripts', [])
-        for file_path in glob.glob(f'{name}/*/__main__.py'):
-            name, *module_names, _, = file_path.split(os.sep)
-            program_name = cov_to_program_name(name, *module_names)
-            module_name = cov_program_name_to_module_name(program_name)
-            setup_option['entry_points']['console_scripts'].append(f"{program_name} = {module_name}.__main__:main")
+    # Merge option
+    for on_option_generator in on_option_generators:
+        for on_option in on_option_generator:
+            setup_option.update(on_option)
 
     # Autogenerate scripts
     # p = pathlib.Path("binexe")

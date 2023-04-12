@@ -2,7 +2,7 @@
 #!/usr/bin/env python
 # type: ignore
 
-import sys, os, re, zipfile, shutil, subprocess, glob, datetime, csv, subprocess
+import sys, os, re, zipfile, shutil, subprocess, glob, datetime, csv, subprocess, typing
 from sysconfig import get_python_version
 from distutils import log
 from distutils.core import Command
@@ -12,6 +12,9 @@ from distutils.dist import Distribution
 # from pip import main as pip_main
 # from pip._internal.cli.main import main as pip_main
 from ...utility.pkg import cov_to_safer_package_name, cov_to_safer_package_version, cov_to_app_name, write_installer
+from ...utility.distribution import walk_distribution_program_name
+
+ENTRY_MAIN_OF_SERVICE_DEF = "service_main"
 
 class bdist_artifact(Command):
     description = 'Create an artifact'
@@ -173,7 +176,8 @@ class bdist_artifact(Command):
         # Make work directory
         work_dir = os.path.join(self.bdist_building_dir, 'zip')
         package_dir = os.path.join(work_dir, 'packages')
-        os.makedirs(package_dir, exist_ok = True)
+        if os.path.exists(work_dir): shutil.rmtree(work_dir)
+        os.makedirs(package_dir)
 
         # Make pip options
         pip_install_opts = ['--disable-pip-version-check']
@@ -187,22 +191,17 @@ class bdist_artifact(Command):
         if self.trusted_host: pip_wheel_opts.append(f'--trusted-host={self.trusted_host}')
         subprocess.call([sys.executable, "-m", "pip"] + pip_wheel_opts)
 
-        #Scan app program
-        app_program_set = set()
-        for console_script in getattr(self.distribution, 'entry_points', {}).get('console_scripts', []):
-            program_name, _, _ = re.split('\s?=\s?|\s?\:\s?', console_script)
-            if not program_name.startswith(cov_to_app_name(self.distribution.get_name())): continue
-            app_program_set.add(program_name)
-
-        # Write installer
-        with open(os.path.join(work_dir, 'install'), 'w', encoding='utf-8') as f:
-            write_installer(
-                f,
-                cov_to_app_name(self.distribution.get_name()),
-                os.path.basename(wheel_file),
-                *list(app_program_set),
-                pip_install_option = " ".join(pip_install_opts)
-            )
+        service_program_names = set(walk_distribution_program_name(self.distribution, ENTRY_MAIN_OF_SERVICE_DEF))
+        if service_program_names:
+            # Write installer
+            with open(os.path.join(work_dir, 'install'), 'w', encoding='utf-8') as f:
+                write_installer(
+                    f,
+                    cov_to_app_name(self.distribution.get_name()),
+                    os.path.basename(wheel_file),
+                    *list(service_program_names),
+                    pip_install_option = " ".join(pip_install_opts)
+                )
 
         # Write license
         if not os.path.exists('LICENSE'):
@@ -225,7 +224,7 @@ class bdist_artifact(Command):
 
     def run(self):
         ##########################################################################
-        # 变了定义
+        # 变量定义
         ##########################################################################
 
         dist_files = getattr(self.distribution, 'dist_files', [])

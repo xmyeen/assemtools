@@ -157,7 +157,7 @@ for d in app_dirs:
 
 app_pip_options.append("-U")
 app_pip_options.append("--force-reinstall")
-app_pip_options.append("--use-feature=in-tree-build")
+#app_pip_options.append("--use-feature=in-tree-build")
 if configer.enable_offline: app_pip_options.append("--no-index")
 
 if os.path.exists(configer.requirement_file):
