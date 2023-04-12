@@ -1,7 +1,7 @@
 # -*- coding:utf-8 -*-
 #!/usr/bin/env python
 
-import os
+import os, datetime
 from setuptools import setup, find_packages
 
 if os.path.exists("doc/README.md"):
@@ -21,9 +21,31 @@ def get_installing_requirements():
 
     return requirements
 
+def gen_version(semver, pre_release_or_none = None, pre_number_or_none = None):
+    final_version_string = semver
+    
+    if pre_release_or_none:
+        final_pre_number = pre_number_or_none or 0
+        final_timestamp_str = datetime.datetime.now().strftime("%Y%m%d%H%M%S")
+
+        pre_releases = pre_release_or_none.split("+")
+
+        if ('rc' in pre_releases) or ('c' in pre_releases):
+            final_version_string = "%src%d.post%s" % (final_version_string, final_pre_number, final_timestamp_str)
+        else:
+            if 'a' in pre_releases:
+                final_version_string = "%sa%d" % (final_version_string, final_pre_number)
+            elif 'b' in pre_releases:
+                final_version_string = "%sb%d" % (final_version_string, final_pre_number)
+                
+            if 'dev' in pre_releases:
+                final_version_string = "%s.dev%d" % (final_version_string, final_timestamp_str)
+
+    return final_version_string
+
 setup(
     name="assemtools",
-    version="0.0.2.dev1",
+    version=gen_version("0.0.2", "a+dev"),
     author='xmyeen',
     author_email="xmyeen@126.com",
     url="https://github.com/xmyeen/assemtools",
