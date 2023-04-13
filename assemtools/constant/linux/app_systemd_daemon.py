@@ -91,7 +91,7 @@ do
     fi
 
     systemctl disable \\$srv
-    find /usr/lib/systemd/ /lib/systemd/ /etc/systemd/ -name "\\$srv" -exec rm -f {{}} \;
+    find /usr/lib/systemd/ /lib/systemd/ /etc/systemd/ -name "\\$srv" -exec rm -f {{}} \\;
 done
 
 systemctl daemon-reload

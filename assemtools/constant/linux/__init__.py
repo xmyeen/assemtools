@@ -45,18 +45,26 @@ cat << EOF | sed -r 's/^\\s\\s\\s\\s//' | $pycmd -
     import sys, zipfile, re
     print('[I]', 'This-Python', ':', sys.executable, '-', sys.version.replace('\\n', ' '))
     try:
-        from pip._internal.utils.packaging import check_requires_python, get_metadata
-        from pip._internal.utils.wheel import pkg_resources_distribution_for_wheel
+        from pip._internal.utils.packaging import check_requires_python
 
-        name = re.sub('[A-Z]', lambda m: '_' + m.group(0).lower(), "$APP_NAME_DEF").strip('_')
         file_path = "$APP_PYPI_DIR/$APP_WHEEL_NAME"
+        name = re.sub('[A-Z]', lambda m: '_' + m.group(0).lower(), "$APP_NAME_DEF").strip('_')
+        wheel_python_requrire = None
 
         with zipfile.ZipFile(file_path, allowZip64 = True) as z:
-            dist = pkg_resources_distribution_for_wheel(z, name, file_path)
-            pkg_info = get_metadata(dist)
-            python_require = pkg_info.get('Requires-Python')
-            if python_require and not check_requires_python(python_require, sys.version_info[:3]):
-                raise RuntimeError("Mismatch requiring '%s'" % (python_require or 'All'))
+            for file_data in z.infolist():
+                if not file_data.filename.endswith(".dist-info/METADATA"): continue
+
+                with z.open(file_data.filename, 'r') as f:
+                    for line_content in f.read().decode('utf-8').splitlines():
+                        splits = line_content.strip().split(":")
+                        if 2 > len(splits): continue
+                        if not splits[0].strip().startswith("Requires-Python"): continue
+                        wheel_python_requrire = splits[1].strip()
+                        break
+                break
+        if wheel_python_requrire and not check_requires_python(wheel_python_requrire, sys.version_info[:3]):
+            raise RuntimeError("Mismatch requiring '%s'" % (wheel_python_requrire or 'All'))
     except:
         exc_type, exc_value, exc_traceback_obj = sys.exc_info()
         print('[E]', 'Check-Python-Error', ':', exc_value)
@@ -69,7 +77,8 @@ function bundle_admin(){{{{
     node_id="$2"
     run_dir="$3"
 
-cat << EOF | sed -r 's/^\\s\\s\\s\\s//'
+#cat << EOF | sed -r 's/^\\s\\s\\s\\s//'
+cat << EOF
 {LINUX_APP_ADMIN_CONTENT_DEF}
 EOF
 }}}}
@@ -184,9 +193,9 @@ echo "[I] Use-Python : $BASE_PY_CMD - `$BASE_PY_CMD --version`"
 # >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 # Write environment file
 cat <<EOF >$env_source_file
-for e in $ENV_SOURCE; do [ -n "\$e" ] && source \$e; done
-export PATH=$binary_dir:\$PATH
-export LD_LIBRARY_PATH=$library_dir:`$py_cmd -c 'import sys;print(sys.base_prefix)'`/lib:\$LD_LIBRARY_PATH
+for e in $ENV_SOURCE; do [ -n "\\$e" ] && source \\$e; done
+export PATH=$binary_dir:\\$PATH
+export LD_LIBRARY_PATH=$library_dir:`$py_cmd -c 'import sys;print(sys.base_prefix)'`/lib:\\$LD_LIBRARY_PATH
 EOF
 ''',
 
@@ -218,7 +227,7 @@ cat <<EOF >$binary_dir/$APP_RUN_PROGRAM_COMMAND_NAME_DEF
 #!/bin/bash
 source $env_source_file
 cd $APP_PREFIX_DIR
-exec bin/\$1
+exec bin/\\$1
 EOF
 
 cat <<EOF >$binary_dir/$APP_START_DAEMON_COMMAND_NAME_DEF
@@ -240,7 +249,7 @@ EOF
 
 '''
 # >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
-find $binary_dir -iname "$APP_NAME_DEF*" -exec chmod 777 {{}} \;
+find $binary_dir -iname "$APP_NAME_DEF*" -exec chmod 777 {{}} \\;
 ''',
 
 '''

@@ -6,7 +6,7 @@ LINUX_APP_ADMIN_CONTENT_DEF = '''#!${{venv_dir}}/bin/python
 
 import os, sys, glob, asyncio, socket, enum, re, dataclasses, typing, configparser, fcntl, getopt, time, signal, traceback
 
-APP_NODE_DEF = "${{node_id}}"
+APP_NODE_DEF = os.getenv("APP_NODE", "${{node_id}}")
 APP_NAME_DEF = "${{APP_NAME_DEF}}"
 APP_PROGRAM_NAME_DEF = "${{APP_PROGRAM_NAME_DEF}}"
 
