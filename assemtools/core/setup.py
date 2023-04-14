@@ -20,7 +20,7 @@ def on_version(final_release:str, pre_release:str|None = None, post_release:str|
     
     post_release {str|int} 是否附加Post-release信息。可以设置一个整数值。或者传"systime"附加系统时间。
 
-    dev_release {str|int} 是否附加Developmental release信息。可以设置整数值，或者传“git”附加git最后一次提交日志的日期。
+    dev_release {str|int} 是否附加Developmental release信息。可以设置整数值，或者传“systime”附加系统时间；若存在post<systime>，则忽略。
     '''
     final_version = final_release
 
@@ -48,18 +48,22 @@ def on_version(final_release:str, pre_release:str|None = None, post_release:str|
         final_version += f'.post{datetime.datetime.now().strftime("%Y%m%d%H%M%S")}'
     else:
         raise RuntimeError(f"Invalid Post-release tag: {post_release}")
-
+        
     if dev_release is None:
+        pass
+    elif post_release is not None:
         pass
     elif isinstance(dev_release, int):
         final_version += f'.dev{dev_release}'
-    elif dev_release == 'git':
-        commit_timestamp = subprocess.getoutput('git log -n 1 --pretty=format:"%cd" --date=format:"%Y%m%d%H%M%S"').strip()
-        if not re.match("\\d+", commit_timestamp): raise RuntimeError(f"Fetch git commit log failed: {commit_timestamp}")
-        final_version += f".dev{commit_timestamp}"
+    # elif dev_release == 'git':
+    #     commit_timestamp = subprocess.getoutput('git log -n 1 --pretty=format:"%cd" --date=format:"%Y%m%d%H%M%S"').strip()
+    #     if not re.match("\\d+", commit_timestamp): raise RuntimeError(f"Fetch git commit log failed: {commit_timestamp}")
+    #     final_version += f".dev{commit_timestamp}"
+    elif dev_release == "systime":
+        final_version += f'.dev{datetime.datetime.now().strftime("%Y%m%d%H%M%S")}'
     else:
         raise RuntimeError(f"Invalid Dev-release tag: {dev_release}")
-
+        
     yield dict(version = final_version)
 
 def on_description(description:str|None = None) -> typing.Iterable[dict[str,typing.Any]]:
