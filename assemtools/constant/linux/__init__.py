@@ -1,5 +1,5 @@
-# -*- coding:utf-8 -*-
 #!/usr/bin/env python
+# -*- coding:utf-8 -*-
 
 from .app_admin import LINUX_APP_ADMIN_CONTENT_DEF
 from .app_systemd_daemon import APP_START_DAEMON_COMMAND_CONTENT_DEF, APP_STOP_DAEMON_COMMAND_CONTENT_DEF, APP_ENABLE_DAEMON_COMMAND_CONTENT_DEF, APP_DISABLE_DAEMON_COMMAND_CONTENT_DEF

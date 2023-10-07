@@ -1,5 +1,5 @@
-# -*- coding:utf-8 -*-
 #!/usr/bin/env python
+# -*- coding:utf-8 -*-
 
 from .bdist_artifact_command import bdist_artifact
 from .cleanup_command import cleanup

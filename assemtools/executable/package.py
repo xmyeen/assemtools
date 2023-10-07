@@ -1,5 +1,5 @@
-# -*- coding:utf-8 -*-
 #!/usr/bin/env python
+# -*- coding:utf-8 -*-
 
 import sys, getopt, subprocess
 from ..constant.artifact_defs import CONFIG_FILE_DEFAULT_DEF, ArtifactTypeDefs

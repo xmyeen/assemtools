@@ -1,5 +1,5 @@
-# -*- coding:utf-8 -*-
 #!/usr/bin/env python
+# -*- coding:utf-8 -*-
 
 import pkg_resources, os, stat, typing, warnings, re, sys, subprocess
 from ..string.string_utility import cov_snake_to_hump, cov_hump_to_snake

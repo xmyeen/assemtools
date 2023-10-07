@@ -1,5 +1,5 @@
-# -*- coding:utf-8 -*-
 #!/usr/bin/env python
+# -*- coding:utf-8 -*-
 
 import os, re, typing, datetime, glob, warnings, pathlib, pkg_resources, subprocess
 from setuptools import setup as setuptools_setup

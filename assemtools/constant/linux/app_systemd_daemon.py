@@ -1,5 +1,5 @@
-# -*- coding:utf-8 -*-
 #!/usr/bin/env python
+# -*- coding:utf-8 -*-
 
 APP_START_DAEMON_COMMAND_CONTENT_DEF = '''#!/bin/bash
 echo "Start $APP_NAME_DEF"

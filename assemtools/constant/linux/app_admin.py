@@ -1,10 +1,10 @@
-# -*- coding:utf-8 -*-
 #!/usr/bin/env python
+# -*- coding:utf-8 -*-
 
 LINUX_APP_ADMIN_CONTENT_DEF = '''#!${{venv_dir}}/bin/python
 # -*- coding: utf-8 -*-
 
-import os, sys, glob, asyncio, socket, enum, re, dataclasses, typing, configparser, fcntl, getopt, time, signal, traceback
+import os, sys, glob, threading, asyncio, socket, enum, re, dataclasses, typing, configparser, fcntl, getopt, time, signal, traceback
 
 APP_NODE_DEF = os.getenv("APP_NODE", "${{node_id}}")
 APP_NAME_DEF = "${{APP_NAME_DEF}}"
@@ -18,7 +18,7 @@ SOCK_DEF = f"{{RUN_DIR_DEF}}/$APP_ADMIN_PROGRAM_NAME_DEF.sock"
 USAGE_DEF = \'\'\'
 Usage:
     Execute program
-    $ $APP_ADMIN_PROGRAM_NAME_DEF <-x|--execute> [<-c|--console>=<Console>] [<-d|--daemonize>] [PROGRAM1[ PROGRAM2...]]
+    $ $APP_ADMIN_PROGRAM_NAME_DEF <-x|--execute> [<-c|--console>=<Console>] [<-d|--daemonize>] [--without=<feature>] [PROGRAM1[ PROGRAM2...]]
 
     Shutdown program
     $ $APP_ADMIN_PROGRAM_NAME_DEF <-s|--shutdown> [PROGRAM1[ PROGRAM2...]]
@@ -30,6 +30,7 @@ Usage:
     $ $APP_ADMIN_PROGRAM_NAME_DEF <--redirect> [<-c|--console>=<Console>]
 
 Parameter:
+    Feature     BACKGROUND_APP_PROCESS
     Console     Ex: /dev/null, app.out, localhost:3000, 127.0.0.1:3000
 \'\'\'
 
@@ -42,6 +43,10 @@ class MainCmdDef(enum.Enum):
 
     def yes(self, cmd:str) -> bool:
         return self.name == cmd
+
+class AdminFeatureDef(enum.Enum):
+    BACKGROUND_APP_PROCESS = 1
+
 
 class AdminCmdDef(enum.Enum):
     EXECUTABLE = 1
@@ -67,11 +72,11 @@ class Config(object):
         return config
 
 class AppAdminister(object):
-    def __init__(self):
-        self.__app_console = None
-        self.__app_program_name_set = set(APP_PROGRAM_NAME_DEF.split(' '))
+    def __init__(self,  *app_programs:str, **app_cfg:typing.Any):
+        self.__app_program_name_set = set(app_programs or APP_PROGRAM_NAME_DEF.split(' '))
+        self.__app_cfg = app_cfg
 
-    def __aiter__(self) -> 'AppAdminister':
+    def __aiter__(self):
         return self
 
     async def __anext__(self):
@@ -82,12 +87,17 @@ class AppAdminister(object):
             raise StopAsyncIteration
 
     def get_application_program_name_set(self) -> typing.Set[str]: return self.__app_program_name_set
-    def set_application_program_name_set(self, names:typing.Iterable[str]): self.__app_program_name_set =  set([n for n in names])
-    app_program_name_set = property(get_application_program_name_set, set_application_program_name_set, None, 'Application Program Name Set')
+    app_program_name_set = property(get_application_program_name_set, None, None, 'Application Program Name Set')
 
-    def get_application_console(self) -> str: return self.__app_console or '/dev/null'
-    def set_applicaiton_console(self, console:str): self.__app_console =  re.sub(r'^([\\\\d\\\\w\\\\.]+)\\\\:(\\\\d+)$', '/dev/tcp/\\\\\\\\1/\\\\\\\\2', console.strip()) if console else None
-    app_console = property(get_application_console, set_applicaiton_console, None, 'Application Console Output')
+    def get_application_console(self) -> str:
+        if console := self.__app_cfg.get('console'):
+            return re.sub(r'^([\\\\d\\\\w\\\\.]+)\\\\:(\\\\d+)$', '/dev/tcp/\\\\\\\\1/\\\\\\\\2', console.strip())
+        else:
+            return '/dev/null'
+    app_console = property(get_application_console, None, None, 'Application Console Output')
+
+    def has_feature(self, feature: str) -> bool:
+        return feature in self.__app_cfg.get('features')
 
     def scan_program_status(self) -> dict[str, dict[str, typing.Any]]:
         program_status_info = {{ name : [] for name in APP_PROGRAM_NAME_DEF.split(",") }}
@@ -113,6 +123,8 @@ class AppAdminister(object):
                         k,v = line.strip().split(':')
                         program_status_info[program_name].append({{ k.strip().lower() : v.strip() }})
             except FileNotFoundError:
+                pass
+            except PermissionError:
                 pass
             except BaseException as e:
                 print(e, type(e))
@@ -163,23 +175,23 @@ class AppAdminister(object):
                         os.kill(int(pid), 9)
 
             if not app_program_statuses and (app_program_name in self.app_program_name_set):
+                bg_token = ' &' if self.has_feature(AdminFeatureDef.BACKGROUND_APP_PROCESS.name) else ''
                 # 进程未执行，且不是需要忽略的程序，则需要启动该程序
                 if self.app_console.startswith('/dev/tcp') or self.app_console.startswith('/dev/udp'):
                     cmdline = '\\\\n'.join([
                         f"exec 3>{{self.app_console}}",
                         f"echo \\\\"{{MainCmdDef.CONSOLE.make_command(APP_NODE_DEF, APP_NAME_DEF, app_program_name)}}\\\\" >&3",
-                        f"exec {{sys.executable}} -u bin/{{app_program_name}} >&3 2>&3 &"
+                        f"exec {{sys.executable}} -u bin/{{app_program_name}} >&3 2>&3{{bg_token}}"
                         # "exec 3>&-"
                     ])
                 elif self.app_console != '/dev/null':
-                    cmdline = f"{{sys.executable}} -u bin/{{app_program_name}} >{{self.app_console}} 2>&1 &"
+                    cmdline = f"exec {{sys.executable}} -u bin/{{app_program_name}} >{{self.app_console}} 2>&1{{bg_token}}"
                 else:
-                    cmdline = f"{{sys.executable}} bin/{{app_program_name}} >/dev/null 2>&1 &"
+                    cmdline = f"exec {{sys.executable}} bin/{{app_program_name}} >/dev/null 2>&1{{bg_token}}"
 
                 print('Run program:', cmdline)
 
-                p = await asyncio.create_subprocess_shell(cmdline, executable='/bin/bash', cwd = sys.prefix, env = app_env, shell = True)
-                await p.wait()
+                await asyncio.create_subprocess_shell(cmdline, executable='/bin/bash', cwd = sys.prefix, env = app_env, shell = True)
 
     async def handle_client(self, reader:asyncio.StreamReader, writer:asyncio.StreamWriter):
         async for rawdata in reader:
@@ -207,49 +219,55 @@ class AppAdminister(object):
         if AdminCmdDef.REDIRECT.yes(command):
             await self.redirect_program(setting.get('console'))
 
-    async def serve(self, *app_programs:str, **cfg:typing.Any):
-        print("Run server as daemon")
-
-        self.app_program_name_set = app_programs or APP_PROGRAM_NAME_DEF.split(' ')
-        self.app_console = cfg.get('console')
+    async def serve(self):
+        print("Start service")
 
         asyncio.create_task(asyncio.start_unix_server(self.handle_client, SOCK_DEF))
         async for _ in self:
-            pass
+            try:
+                # Avoiding zombie processes, such as Docker
+                os.waitpid(-1, os.WNOHANG)
+            except ChildProcessError:
+                pass
 
 def parse_command_arguments(*cmd_args):
-    setting = {{}}
-    opts, args = getopt.getopt(cmd_args,'hxsrc:d', ['help', 'execute', 'shutdown', 'restart', 'redirect', 'daemonize', 'console='])
+    setting = {{ "features" : list(AdminFeatureDef.__members__.keys()) }}
+    opts, args = getopt.getopt(cmd_args,'hxsrc:d', ['help', 'execute', 'shutdown', 'restart', 'redirect', 'daemonize', 'console=', 'without='])
     for opt,val in opts:
         if opt in ('-h','--help'):
             print(USAGE_DEF)
             sys.exit(0)
-        if opt in ('-x', '--execute'):
+        elif opt in ('-x', '--execute'):
             setting.update(command = AdminCmdDef.EXECUTABLE.name)
-        if opt in ('-s', '--shutdown'):
+        elif opt in ('-s', '--shutdown'):
             setting.update(command = AdminCmdDef.SHUTDOWN.name)
-        if opt in ('-r', '--restart'):
+        elif opt in ('-r', '--restart'):
             setting.update(command = AdminCmdDef.RESTART.name)
-        if opt in ('--redirect', ):
+        elif opt in ('--redirect', ):
             setting.update(command = AdminCmdDef.REDIRECT.name)
-        if opt in ('-c', '--console'):
+        elif opt in ('-c', '--console'):
             setting.update(console = val)
-        if opt in ('-d', '--daemonize'):
+        elif opt in ('-d', '--daemonize'):
             setting.update(daemonize = True)
-
+        elif opt in ('--without', ):
+            setting['features'] = [ f for f in setting.get('features') if f.lower() != val.lower() ]
+ 
     return [setting, *args]
 
 def do_client_request():
     print('Do client request')
-    with socket.socket(socket.AF_UNIX) as sock:
-        for _ in range(5):
-            try:
-                sock.connect(SOCK_DEF)
-                sock.send(MainCmdDef.ADMIN.make_command(*sys.argv[1:]).encode('utf-8'))
-            except (ConnectionError, FileNotFoundError):
-                time.sleep(1)
-            else:
-                break
+    try:
+        with socket.socket(socket.AF_UNIX) as sock:
+            for _ in range(5):
+                try:
+                    sock.connect(SOCK_DEF)
+                    sock.send(MainCmdDef.ADMIN.make_command(*sys.argv[1:]).encode('utf-8'))
+                except (ConnectionError, FileNotFoundError):
+                    time.sleep(1)
+                else:
+                    break
+    except BaseException as e:
+        print(e, type(e))
 
 def main():
     pidfd = os.open(PID_FILE_DEF, os.O_CREAT | os.O_WRONLY )
@@ -259,28 +277,38 @@ def main():
         fcntl.flock(pidfd, fcntl.LOCK_EX | fcntl.LOCK_NB)
     except BlockingIOError:
         print("Run as client")
-        os.close(pidfd)
         do_client_request()
         sys.exit(0)
 
-    try:
-        setting, *app_programs = parse_command_arguments(*sys.argv[1:])
+    setting, *app_programs = parse_command_arguments(*sys.argv[1:])
 
-        if setting.get('daemonize'):
-            if 0 < os.fork():
-                do_client_request()
-                sys.exit(0)
+    if setting.get('daemonize'):
+        print('Run as daemon')
+        if 0 < os.fork():
+            # Parent only
+            sys.exit(0)
 
+        try:
             #os.chdir('/')
-            os.umask(0)
+            # File permission value is equal to the difference between the values of chmod and umask.
+            # For example, the value of chmod is 777, the value of umask is 022, and the file permission final value is 755
+            # The child process will inherit all permissions from the parent process
+            os.umask(0o0) 
+            # Change SID to current PID. Detach process from the terminal.
             os.setsid()
+        except BaseException as e:
+            print(e, type(e))
+            os.close(pidfd)
+            sys.exit(0)
 
-            if 0 < os.fork():
-                sys.exit(0)
+        if 0 < os.fork():
+            # Parent only
+            sys.exit(0)
 
+        try:
             for fd in sys.stdin, sys.stdout, sys.stderr:
                 fd.flush()
-                # fd.close()
+                fd.close()
 
             f0 = open(f'/dev/null', 'w+')
             os.dup2(f0.fileno(), sys.stdout.fileno())
@@ -291,20 +319,24 @@ def main():
             f2 = open('/dev/null', 'r')
             os.dup2(f2.fileno(), sys.stdin.fileno())
 
-            signal.signal(signal.SIGCHLD, signal.SIG_DFL)
-        else:
-            if 0 == os.fork():
-                do_client_request()
-                sys.exit(0)
+            # signal.signal(signal.SIGCHLD, signal.SIG_DFL)
+        except BaseException as e:
+            print(e, type(e))
+            os.close(pidfd)
+            sys.exit(0)
+    try:
+        print("Sent parameters to unix socket and consume after the service started")
+        threading.Thread(target = do_client_request).start()
 
         pidfo = os.fdopen(pidfd, 'w')
         pidfo.write("%d" % (os.getpid()))
         pidfo.flush()
         #pidfo.close()
 
-        admin = AppAdminister()
-        asyncio.run(admin.serve(*app_programs, **setting))
+        admin = AppAdminister(*app_programs, **setting)
+        asyncio.run(admin.serve())
     finally:
+        #Unlock file
         os.close(pidfd)
 
 if __name__ == '__main__':

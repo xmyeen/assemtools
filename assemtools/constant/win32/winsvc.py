@@ -1,5 +1,5 @@
-# -*- coding:utf-8 -*-
 #!/usr/bin/env python
+# -*- coding:utf-8 -*-
 
 WIN32_APP_AGENT_SERVICE_CONTENT_DEF = '''# -*- coding:utf-8 -*-
 
