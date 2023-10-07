@@ -24,13 +24,15 @@ def cov_program_name_to_module_name(program_name:str) -> str:
     return '.'.join(map(lambda s: cov_hump_to_snake(cov_to_safer_package_name(s)), program_name.split('-')))
 
 def write_installer(f: typing.IO, app_name:str, app_wheel_name:str, *app_programs:str, **other_option:typing.Any):
+    app_hump_name = re.sub(r'[_-]([a-zA-Z])', lambda m: m.group(1).upper(), app_name)
     f.write(
         INSTALLER_CONTENT_TEMPLATE_DEF.format(
             PIP_INSTALL_OPTION_DEF = other_option.get("pip_install_option", ""),
             APP_NAME_DEF = app_name,
             APP_DESCRIPTION_DEF = "",
             APP_WHEEL_NAME = os.path.basename(app_wheel_name),
-            APP_PROGRAM_NAME_DEF = " ".join(app_programs)
+            APP_PROGRAM_NAME_DEF = " ".join(app_programs),
+            APP_ADMIN_PROGRAM_NAME_DEF = f"{app_hump_name}-app-admin"
         )
     )
     f.flush()
