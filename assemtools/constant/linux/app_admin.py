@@ -17,8 +17,11 @@ SOCK_DEF = f"{{RUN_DIR_DEF}}/$APP_ADMIN_PROGRAM_NAME_DEF.sock"
 
 USAGE_DEF = \'\'\'
 Usage:
+    Run admin program
+    $ $APP_ADMIN_PROGRAM_NAME_DEF [<-d|--daemonize>] [--without=<feature>] [PROGRAM1[ PROGRAM2...]]
+
     Execute program
-    $ $APP_ADMIN_PROGRAM_NAME_DEF <-x|--execute> [<-c|--console>=<Console>] [<-d|--daemonize>] [--without=<feature>] [PROGRAM1[ PROGRAM2...]]
+    $ $APP_ADMIN_PROGRAM_NAME_DEF <-x|--execute> [<-c|--console>=<Console>] [PROGRAM1[ PROGRAM2...]]
 
     Shutdown program
     $ $APP_ADMIN_PROGRAM_NAME_DEF <-s|--shutdown> [PROGRAM1[ PROGRAM2...]]
@@ -83,7 +86,7 @@ class AppAdminister(object):
         try:
             await self.syn_program()
             await asyncio.sleep(1)
-        except KeyboardInterrupt:
+        except (SystemExit, KeyboardInterrupt) as e:
             raise StopAsyncIteration
 
     def get_application_program_name_set(self) -> typing.Set[str]: return self.__app_program_name_set
@@ -122,18 +125,16 @@ class AppAdminister(object):
                     while line := status.readline():
                         k,v = line.strip().split(':')
                         program_status_info[program_name].append({{ k.strip().lower() : v.strip() }})
-            except FileNotFoundError:
+            except (FileNotFoundError, PermissionError):
                 pass
-            except PermissionError:
-                pass
+            except (SystemExit, KeyboardInterrupt) as e:
+                raise e
             except BaseException as e:
                 print(e, type(e))
 
         return program_status_info
 
-    async def restart_program(self, *app_programs:str, **cfg:typing.Any):
-        if cfg.get('console'): self.app_console = cfg.get('console')
-
+    async def restart_program(self, *app_programs:str):
         target_programs = app_programs if app_programs else APP_PROGRAM_NAME_DEF.split(",")
 
         app_status_info = self.scan_program_status()
@@ -144,11 +145,10 @@ class AppAdminister(object):
                     if pid := app_program_status.get('pid'):
                         os.kill(int(pid), 9)
 
-    async def start_program(self, *app_programs:str, **cfg:typing.Any):
-        self.app_console = cfg.get('console')
+    async def start_program(self, *app_programs:str):
         self.app_program_name_set.update(app_programs or APP_PROGRAM_NAME_DEF.split(","))
 
-    async def stop_program(self, *app_programs:str, **cfg:typing.Any):
+    async def stop_program(self, *app_programs:str):
         self.app_program_name_set.difference_update(app_programs or APP_PROGRAM_NAME_DEF.split(","))
 
         app_status_info = self.scan_program_status()
@@ -160,7 +160,8 @@ class AppAdminister(object):
                         os.kill(int(pid), 9)
 
     async def redirect_program(self, console:str = None):
-        await self.restart_program(console = console)
+        self.__app_cfg.update(dict(console = console))
+        await self.restart_program()
 
     async def syn_program(self):
         app_env = os.environ.copy()
@@ -208,13 +209,13 @@ class AppAdminister(object):
         print('Administer:', command, setting)
 
         if AdminCmdDef.EXECUTABLE.yes(command):
-            await self.start_program(*app_programs, **setting)
+            await self.start_program(*app_programs)
 
         if AdminCmdDef.SHUTDOWN.yes(command):
-            await self.stop_program(*app_programs, **setting)
+            await self.stop_program(*app_programs)
 
         if AdminCmdDef.RESTART.yes(command):
-            await self.restart_program(*app_programs, **setting)
+            await self.restart_program(*app_programs)
 
         if AdminCmdDef.REDIRECT.yes(command):
             await self.redirect_program(setting.get('console'))
@@ -223,12 +224,21 @@ class AppAdminister(object):
         print("Start service")
 
         asyncio.create_task(asyncio.start_unix_server(self.handle_client, SOCK_DEF))
-        async for _ in self:
-            try:
-                # Avoiding zombie processes, such as Docker
-                os.waitpid(-1, os.WNOHANG)
-            except ChildProcessError:
-                pass
+        try:
+            async for _ in self:
+                try:
+                    # Avoiding zombie processes, such as Docker
+                    os.waitpid(-1, os.WNOHANG)
+                except ChildProcessError:
+                    pass
+        finally:
+            # Kill all child processes
+            for app_program_name, app_program_statuses in self.scan_program_status().items():
+                for app_program_status in app_program_statuses:
+                    if os.getpid() != app_program_status.get('ppid'):
+                        continue
+                    if pid := app_program_status.get('pid'):
+                        os.kill(int(pid), 9)
 
 def parse_command_arguments(*cmd_args):
     setting = {{ "features" : list(AdminFeatureDef.__members__.keys()) }}
